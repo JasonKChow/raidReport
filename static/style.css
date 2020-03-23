@@ -1,0 +1,12 @@
+.observablehq--inspect {
+     display: none
+}
+
+div {
+    width: 957px;
+}
+
+body {
+    display: grid;
+    place-items: center center;
+}
