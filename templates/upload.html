@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Raid Report Upload</title>
+    <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="static/primer.css">
+</head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="static/dropzone/dropzone.css">
+<script src="static/dropzone/dropzone.js"></script>
+<script>
+Dropzone.options.uploadBox = {
+    paramName: "file",
+    maxFilesize: 5,
+    timeout: 1200000,
+    acceptedFiles: '.zevtc'
+};
+</script>
+<body>
+
+<div class="uploadPage">
+    <h1>Upload your .zevtc here!</h1>
+    <form action="https://andrexia.com/raidReport/upload" class="dropzone" id="uploadBox"></form>
+</div>
+
+</body>
+</html>

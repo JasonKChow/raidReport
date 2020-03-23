@@ -2,7 +2,11 @@
      display: none
 }
 
-div {
+div.observablehq {
+    width: 957px;
+}
+
+div.uploadPage {
     width: 957px;
 }
 

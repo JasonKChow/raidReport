@@ -3,9 +3,72 @@ import json
 import os
 import shutil
 import time
+import sys
 
 
-def logUploader(overwrite=False):
+bossIDs = {
+    15438: 'Vale Guardian',
+    15429: 'Gorseval the Multifarious',
+    15375: 'Sabetha the Saboteur',
+    16123: 'Slothasor',
+    16115: 'Matthias Gabrel',
+    16235: 'Keep Construct',
+    16246: 'Xera',
+    17194: 'Cairn the Indomitable',
+    17172: 'Mursaat Overseer',
+    17188: 'Samarog',
+    17154: 'Deimos',
+    19767: 'Soulless Horror',
+    19450: 'Dhuum',
+    43974: 'Conjured Amalgamate',
+    21105: 'Nikare',
+    20934: 'Qadim',
+    22006: 'Cardinal Adina',
+    21964: 'Cardinal Sabir',
+    22000: 'Qadim the Peerless'
+}
+
+
+def logParser(fileName):
+    userToken = 'kltu2he26nvdrk0451atc1s2p2'
+    params = {'json': 1, 'userToken': userToken}
+
+    # Upload log
+    file = {'file': open('uploads/{}'.format(fileName), 'rb')}
+    upload = requests.post(url='https://dps.report/uploadContent',
+                           files=file,
+                           data=params)
+    log = json.loads(upload.content)
+
+    boss = bossIDs[log['encounter']['bossId']]
+    if log['encounter']['success']:
+        idFile = open('ids.txt', 'a')
+        idFile.write(log['permalink'] + '\n')
+        idFile.close()
+
+        # Move file to archive
+        os.rename('uploads/{}'.format(fileName),
+                  'logArchive/{}/{}'.format(boss, fileName))
+
+        # Build data from this log
+        dataBuilder(log['permalink'])
+    else:
+        print('Not a success, trashing!')
+        sys.stdout.flush()
+        os.rename('uploads/{}'.format(fileName),
+                  'trash/{}/{}'.format(boss, fileName))
+
+
+def dataBuilder(permalink):
+    fileName = permalink.replace('https://dps.report/', '')
+    with open('{}.json'.format(fileName), 'w') as f:
+        json.dump(dataPreProcess(permalink), f)
+
+    os.rename('{}.json'.format(fileName),
+              'data/{}.json'.format(fileName))
+
+
+def massLogUploader(overwrite=False):
     userToken = 'kltu2he26nvdrk0451atc1s2p2'
     params = {'json': 1, 'userToken': userToken}
 
@@ -59,7 +122,7 @@ def logUploader(overwrite=False):
     idFile.close()
 
 
-def dataBuilder(overwrite=False):
+def massDataBuilder(overwrite=False):
     # Create data directory
     if 'data' in os.listdir('.'):
         if overwrite:
@@ -183,6 +246,6 @@ def dataPreProcess(permalink):
 
 
 if __name__ == '__main__':
-    # logUploader(overwrite=False)
-    dataBuilder(overwrite=True)
+    massLogUploader(overwrite=False)
+    massDataBuilder(overwrite=True)
 

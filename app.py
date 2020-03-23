@@ -1,8 +1,10 @@
 import flask
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 from flask_cors import CORS
 import json
 import os
+import dpsReportUtils
+import requests
 
 app = Flask(__name__)
 CORS(app)
@@ -26,6 +28,19 @@ def encounterData():
                 encounters[fileURL] = json.load(json_file)
 
     return flask.jsonify(encounters)
+
+
+@app.route("/upload", methods=["GET", "POST"])
+def uploadPage():
+    if request.method == 'POST':
+        if request.files:
+            log = request.files['file']
+            log.save('uploads/'+log.filename)
+            dpsReportUtils.logParser(log.filename)
+
+            return 'Success'
+
+    return render_template('upload.html')
 
 
 if __name__ == '__main__':
