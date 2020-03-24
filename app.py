@@ -15,6 +15,13 @@ def index():
     return render_template('index.html')
 
 
+@app.route('/availableBosses', methods=['GET'])
+def availableBosses():
+    files = [x.split('_')[1].replace('.json', '') for x in os.listdir('data')]
+    files = {'bosses': list(set(files))}
+    return flask.jsonify(files)
+
+
 @app.route('/encounterData', methods=['POST'])
 def encounterData():
     selectedBoss = flask.request.json['Boss']
