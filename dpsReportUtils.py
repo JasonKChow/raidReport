@@ -41,6 +41,12 @@ def logParser(fileName):
     log = json.loads(upload.content)
 
     boss = bossIDs[log['encounter']['bossId']]
+    if boss not in os.listdir('logArchive'):
+        os.mkdir('logArchive/{}'.format(boss))
+
+    if boss not in os.listdir('trash'):
+        os.mkdir('trash/{}'.format(boss))
+
     if log['encounter']['success']:
         idFile = open('ids.txt', 'a')
         idFile.write(log['permalink'] + '\n')
