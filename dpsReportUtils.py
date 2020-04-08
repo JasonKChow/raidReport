@@ -25,7 +25,13 @@ bossIDs = {
     20934: 'Qadim',
     22006: 'Cardinal Adina',
     21964: 'Cardinal Sabir',
-    22000: 'Qadim the Peerless'
+    22000: 'Qadim the Peerless',
+    17021: 'M A M A',
+    17028: 'Siax the Corrupted',
+    16948: 'Ensolyss of the Endless Torment',
+    17632: 'Skorvald the Shattered',
+    17949: 'Artsariiv',
+    17759: 'Arkk'
 }
 
 
