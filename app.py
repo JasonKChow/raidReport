@@ -51,6 +51,4 @@ def uploadPage():
 
 
 if __name__ == '__main__':
-    app.run(host='192.168.0.4',
-            ssl_context=('/etc/letsencrypt/live/andrexia.com/fullchain.pem',
-                         '/etc/letsencrypt/live/andrexia.com/privkey.pem'))
+    app.run(host='192.168.0.19')
