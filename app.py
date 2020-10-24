@@ -3,12 +3,41 @@ from flask import Flask, render_template, request
 from flask_cors import CORS
 import json
 import os
-from dpsReportUtils import logParser, bossIDs
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import requests
 import sys
 from dataclasses import dataclass
+
+bossIDs = {
+    15438: 'Vale Guardian',
+    15429: 'Gorseval the Multifarious',
+    15375: 'Sabetha the Saboteur',
+    16123: 'Slothasor',
+    16115: 'Matthias Gabrel',
+    16235: 'Keep Construct',
+    16246: 'Xera',
+    17194: 'Cairn the Indomitable',
+    17172: 'Mursaat Overseer',
+    17188: 'Samarog',
+    17154: 'Deimos',
+    19767: 'Soulless Horror',
+    19450: 'Dhuum',
+    43974: 'Conjured Amalgamate',
+    21105: 'Nikare',
+    20934: 'Qadim',
+    22006: 'Cardinal Adina',
+    21964: 'Cardinal Sabir',
+    22000: 'Qadim the Peerless',
+    17021: 'M A M A',
+    17028: 'Siax the Corrupted',
+    16948: 'Ensolyss of the Endless Torment',
+    17632: 'Skorvald the Shattered',
+    17949: 'Artsariiv',
+    17759: 'Arkk',
+    23254: 'Elemental Ai, Keeper of the Peak',
+    -8: 'Dark Ai, Keeper of the Peak'
+}
 
 with open('dbConfig.json') as f:
     config = json.load(f)
@@ -173,12 +202,16 @@ def add_log(inp, db):
         return None
 
     # Get easy info
-    bossID = log.get('triggerID')
     date = int(datetime.strptime(log.get('timeEnd')+'00',
                                  '%Y-%m-%d %H:%M:%S %z').timestamp())
     uploadDate = meta.get('uploadTime')
     isCM = meta['encounter'].get('isCm')
     permalink = meta.get('permalink')
+
+    # Get boss ID
+    if bossID := log.get('triggerID') == 23254:
+        # Exception for Ai
+        bossID = log['targets'][0].get('id')
 
     # Parse duration
     duration = 0
@@ -257,41 +290,7 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/availableBosses', methods=['GET'])
-def availableBosses():
-    files = [x.split('_')[1].replace('.json', '') for x in os.listdir('data')]
-    files = {'bosses': list(set(files))}
-    return flask.jsonify(files)
-
-
-@app.route('/encounterData', methods=['POST'])
-def encounterData():
-    selectedBoss = flask.request.json['Boss']
-
-    encounters = {}
-    files = os.listdir('data')
-    for file in files:
-        if selectedBoss+'.json' == file.split('_')[-1]:
-            with open('data/'+file) as json_file:
-                fileURL = file.replace('.json', '')
-                encounters[fileURL] = json.load(json_file)
-
-    return flask.jsonify(encounters)
-
-
 @app.route("/upload", methods=["GET", "POST"])
-def uploadPage():
-    if request.method == 'POST':
-        if request.files:
-            log = request.files['file']
-            log.save('uploads/'+log.filename)
-            logParser(log.filename)
-
-            return 'Success'
-
-    return render_template('upload.html')
-
-@app.route("/uploadV2", methods=["GET", "POST"])
 def uploadPageV2():
     if request.method == 'POST':
         if request.files:
@@ -303,22 +302,65 @@ def uploadPageV2():
 
     return render_template('uploadV2.html')
 
+
 @app.route('/encounterDataV2', methods=['GET'])
 def encounterDataV2():
     selectedBoss = flask.request.args.get('bossID')
+    sortBy = flask.request.args.get('sortBy')
 
-    data = Encounter.query.filter_by(bossID=selectedBoss).all()
+    data = Encounter.query.filter_by(bossID=selectedBoss)
 
-    return flask.jsonify(data)
+    # Sort encounters
+    if sortBy == 'date-up':
+        # Oldest first
+        data = data.order_by(Encounter.date)
+    elif sortBy == 'dps-down':
+        # Highest DPS first:
+        data = data.order_by(Encounter.totalDPS.desc())
+    elif sortBy == 'dps-up':
+        # Lower DPS first
+        data = data.order_by(Encounter.totalDPS)
+    else:
+        # Default sort -- newest first
+        data = data.order_by(Encounter.date.desc())
+
+    return flask.jsonify(data.all())
 
 
 @app.route('/encounterEntries', methods=['GET'])
 def entryData():
     encID = flask.request.args.get('ID')
 
-    data = PlayerEntry.query.filter_by(encID=encID).all()
+    data = PlayerEntry.query.filter_by(encID=encID)\
+        .order_by(PlayerEntry.subgroup, PlayerEntry.totalDPS.desc()).all()
 
     return flask.jsonify(data)
+
+
+@app.route('/bossRecords', methods=['GET'])
+def bossRecords():
+    bossID = flask.request.args.get('bossID')
+    limit = int(flask.request.args.get('limit'))
+    filter = flask.request.args.get('filter')
+
+    # Basic query
+    data = PlayerEntry.query.join(Encounter, PlayerEntry.encID == Encounter.id)\
+        .filter_by(bossID=bossID)\
+        .add_columns(Encounter.date, Encounter.duration, Encounter.totalDPS)\
+        .order_by(PlayerEntry.totalDPS.desc())
+
+    # Filter builds if desired
+    if filter == 'dps':
+        data = data.filter((PlayerEntry.buildStats == 'power') |
+                           (PlayerEntry.buildStats == 'condition'))
+    elif filter == 'support':
+        data = data.filter((PlayerEntry.buildStats == 'healing') |
+                           (PlayerEntry.buildStats == 'concentration') |
+                           (PlayerEntry.buildStats == 'toughness'))
+
+    # Return limited amount of rows
+    return flask.jsonify(data.limit(limit).all())
+
 
 if __name__ == '__main__':
     test = Encounter.query.filter_by(bossID=15438).all()
