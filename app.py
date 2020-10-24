@@ -4,7 +4,6 @@ from flask_cors import CORS
 import json
 import os
 import dpsReportUtils
-import requests
 
 app = Flask(__name__)
 CORS(app)

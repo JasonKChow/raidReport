@@ -313,6 +313,21 @@ class PlayerEntry(Base):
                f"totalDPS={self.totalDPS})>"
 
 
+with open('dbConfig.json') as f:
+    config = json.load(f)
+
+dbURI = f"mysql+pymysql://{config.get('user')}:" \
+        f"{config.get('password')}@" \
+        f"{config.get('host')}:" \
+        f"{config.get('port')}/" \
+        f"{config.get('db')}"
+
+engine = sql.create_engine(dbURI, connect_args={'check_same_thread': False})
+
+Base.metadata.create_all(engine)
+
+Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 def uploadLog(fileName, session):
     userToken = 'kltu2he26nvdrk0451atc1s2p2'
     params = {'json': 1, 'userToken': userToken}
@@ -473,19 +488,5 @@ def massDBImport(id_file, session):
 
 
 if __name__ == '__main__':
-    with open('dbConfig.json') as f:
-        config = json.load(f)
-
-    dbURI = f"mysql+pymysql://{config.get('user')}:" \
-            f"{config.get('password')}@" \
-            f"{config.get('host')}:" \
-            f"{config.get('port')}/" \
-            f"{config.get('db')}"
-
-    engine = sql.create_engine(dbURI)
-
-    Base.metadata.create_all(engine)
-
-    session = sessionmaker(bind=engine)()
-
+    session = Session()
     massDBImport('ids.txt', session)
