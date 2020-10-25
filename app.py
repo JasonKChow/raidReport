@@ -63,6 +63,7 @@ class Encounter(db.Model):
     success: bool
     duration: int
     totalDPS: int
+    numPlayers: int
     isCM: bool
     permalink: str
 
@@ -75,6 +76,7 @@ class Encounter(db.Model):
     success = db.Column(db.Boolean)
     duration = db.Column(db.Integer)
     totalDPS = db.Column(db.Integer)
+    numPlayers = db.Column(db.Integer)
     isCM = db.Column(db.Boolean)
     permalink = db.Column(db.String(100))
 
@@ -146,6 +148,7 @@ def uploadLog(fileName, db):
 
     os.remove('uploads/' + fileName)
 
+
 def add_log(inp, db):
     if type(inp) == str:
         # Probably a permalink
@@ -207,9 +210,10 @@ def add_log(inp, db):
     uploadDate = meta.get('uploadTime')
     isCM = meta['encounter'].get('isCm')
     permalink = meta.get('permalink')
+    numPlayers = meta['encounter'].get('numberOfPlayers')
 
     # Get boss ID
-    if bossID := log.get('triggerID') == 23254:
+    if (bossID := log.get('triggerID')) == 23254:
         # Exception for Ai
         bossID = log['targets'][0].get('id')
 
@@ -236,6 +240,7 @@ def add_log(inp, db):
         success=success,
         duration=duration,
         totalDPS=totalDPS,
+        numPlayers=numPlayers,
         isCM=isCM,
         permalink=permalink
     )
@@ -307,8 +312,14 @@ def uploadPageV2():
 def encounterDataV2():
     selectedBoss = flask.request.args.get('bossID')
     sortBy = flask.request.args.get('sortBy')
+    playerMin = flask.request.args.get('playerMin')
+    playerMax = flask.request.args.get('playerMax')
 
-    data = Encounter.query.filter_by(bossID=selectedBoss)
+    print(playerMax)
+    sys.stdout.flush()
+
+    data = Encounter.query.filter(Encounter.bossID == selectedBoss)\
+        .filter(Encounter.numPlayers.between(playerMin, playerMax))
 
     # Sort encounters
     if sortBy == 'date-up':
@@ -342,24 +353,59 @@ def bossRecords():
     bossID = flask.request.args.get('bossID')
     limit = int(flask.request.args.get('limit'))
     filter = flask.request.args.get('filter')
+    normalize = flask.request.args.get('normalize')
+    playerMin = flask.request.args.get('playerMin')
+    playerMax = flask.request.args.get('playerMax')
 
     # Basic query
     data = PlayerEntry.query.join(Encounter, PlayerEntry.encID == Encounter.id)\
-        .filter_by(bossID=bossID)\
-        .add_columns(Encounter.date, Encounter.duration, Encounter.totalDPS)\
-        .order_by(PlayerEntry.totalDPS.desc())
+        .filter_by(bossID=bossID) \
+        .filter(Encounter.numPlayers.between(playerMin, playerMax))\
+        .add_columns(Encounter.date,
+                     Encounter.duration,
+                     Encounter.totalDPS,
+                     Encounter.numPlayers)
 
     # Filter builds if desired
     if filter == 'dps':
-        data = data.filter((PlayerEntry.buildStats == 'power') |
-                           (PlayerEntry.buildStats == 'condition'))
+        data = data.filter(
+            (PlayerEntry.buildStats.contains('power')) |
+            (PlayerEntry.buildStats.contains('condition'))
+        )
+
     elif filter == 'support':
-        data = data.filter((PlayerEntry.buildStats == 'healing') |
-                           (PlayerEntry.buildStats == 'concentration') |
-                           (PlayerEntry.buildStats == 'toughness'))
+        data = data.filter(
+            (PlayerEntry.buildStats.contains('healing')) |
+            (PlayerEntry.buildStats.contains('concentration')) |
+            (PlayerEntry.buildStats.contains('toughness'))
+        )
+
+    # Do normalization if needed
+    if normalize == 'propCorr':
+        # Loop through and normalize
+        data = data.all()
+        for i in range(len(data)):
+            # Calculate correction multiplier
+            expectedProp = 1/data[i].numPlayers
+            curProp = data[i].PlayerEntry.totalDPS / data[i].totalDPS
+            dpsMult = 1 - (curProp - expectedProp) * 1.2
+
+            # Apply multiplier
+            data[i].PlayerEntry.totalDPS = round(data[i].PlayerEntry.totalDPS *
+                                                 dpsMult)
+            data[i].PlayerEntry.condiDPS = round(data[i].PlayerEntry.condiDPS *
+                                                 dpsMult)
+            data[i].PlayerEntry.powerDPS = round(data[i].PlayerEntry.powerDPS *
+                                                 dpsMult)
+
+        # Sort
+        data.sort(reverse=True, key=lambda x: x.PlayerEntry.totalDPS)
+        data = data[0:limit]
+    else:
+        data = data.order_by(PlayerEntry.totalDPS.desc()).limit(limit).all()
 
     # Return limited amount of rows
-    return flask.jsonify(data.limit(limit).all())
+    return flask.jsonify(data)
 
 
 if __name__ == '__main__':
