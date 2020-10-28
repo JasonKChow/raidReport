@@ -305,7 +305,7 @@ def uploadPageV2():
 
             return 'Success'
 
-    return render_template('uploadV2.html')
+    return render_template('upload.html')
 
 
 @app.route('/encounterDataV2', methods=['GET'])
@@ -335,7 +335,16 @@ def encounterDataV2():
         # Default sort -- newest first
         data = data.order_by(Encounter.date.desc())
 
-    return flask.jsonify(data.all())
+    # Get encounter entries
+    data = data.all()
+    encounterEntries = []
+    for encounter in data:
+        encData = PlayerEntry.query.filter_by(encID=encounter.id)\
+            .order_by(PlayerEntry.subgroup,
+                      PlayerEntry.totalDPS.desc()).all()
+        encounterEntries += [encData]
+
+    return flask.jsonify([data, encounterEntries])
 
 
 @app.route('/encounterEntries', methods=['GET'])
