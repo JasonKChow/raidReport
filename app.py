@@ -314,12 +314,16 @@ def encounterDataV2():
     sortBy = flask.request.args.get('sortBy')
     playerMin = flask.request.args.get('playerMin')
     playerMax = flask.request.args.get('playerMax')
+    dateMin = flask.request.args.get('dateMin')
+    dateMax = flask.request.args.get('dateMax')
 
     print(playerMax)
     sys.stdout.flush()
 
     data = Encounter.query.filter(Encounter.bossID == selectedBoss)\
-        .filter(Encounter.numPlayers.between(playerMin, playerMax))
+        .filter(Encounter.numPlayers.between(playerMin, playerMax))\
+        .filter(Encounter.date >= dateMin)\
+        .filter(Encounter.date <= dateMax)
 
     # Sort encounters
     if sortBy == 'date-up':
@@ -365,6 +369,8 @@ def bossRecords():
     normalize = flask.request.args.get('normalize')
     playerMin = flask.request.args.get('playerMin')
     playerMax = flask.request.args.get('playerMax')
+    dateMin = flask.request.args.get('dateMin')
+    dateMax = flask.request.args.get('dateMax')
 
     # Basic query
     data = PlayerEntry.query.join(Encounter, PlayerEntry.encID == Encounter.id)\
@@ -373,7 +379,9 @@ def bossRecords():
         .add_columns(Encounter.date,
                      Encounter.duration,
                      Encounter.totalDPS,
-                     Encounter.numPlayers)
+                     Encounter.numPlayers) \
+        .filter(Encounter.date >= dateMin) \
+        .filter(Encounter.date <= dateMax)
 
     # Filter builds if desired
     if filter == 'dps':
